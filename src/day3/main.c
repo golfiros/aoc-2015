@@ -1,4 +1,3 @@
-#include "maps.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +6,7 @@ typedef struct {
   int32_t x, y;
 } pair_t;
 
-int dictionary_order(const void *p1, const void *p2) {
+int dict_order(const void *p1, const void *p2) {
   pair_t pair1 = *(pair_t *)p1;
   pair_t pair2 = *(pair_t *)p2;
   if (pair1.x != pair2.x) {
@@ -16,19 +15,24 @@ int dictionary_order(const void *p1, const void *p2) {
   return pair1.y - pair2.y;
 }
 
+#define MAP_SIZE 8192
+
 int main(int argc, char **argv) {
   FILE *fp = fopen(argv[1], "r");
 
-  map_t *old_strategy = new_map(sizeof(pair_t), 0, dictionary_order, NULL);
-  map_t *new_strategy = new_map(sizeof(pair_t), 0, dictionary_order, NULL);
-
-  char c;
-  uint8_t turn = 0;
   pair_t just_santa = {0};
   pair_t real_santa = {0};
   pair_t robo_santa = {0};
-  map_add(old_strategy, &just_santa, NULL);
-  map_add(new_strategy, &just_santa, NULL);
+
+  pair_t old_strategy[MAP_SIZE];
+  pair_t new_strategy[MAP_SIZE];
+
+  old_strategy[0] = new_strategy[0] = just_santa;
+  uint32_t old_counter = 1, new_counter = 1;
+
+  char c;
+  uint8_t turn = 0;
+
   while ((c = fgetc(fp)) != EOF) {
     if (c == '^') {
       just_santa.y++;
@@ -43,13 +47,19 @@ int main(int argc, char **argv) {
       just_santa.x--;
       turn ? (real_santa.x--) : (robo_santa.x--);
     }
-    map_add(old_strategy, &just_santa, NULL);
-    map_add(new_strategy, turn ? &real_santa : &robo_santa, NULL);
+    if (!bsearch(&just_santa, old_strategy, old_counter, sizeof(pair_t),
+                 dict_order)) {
+      old_strategy[old_counter++] = just_santa;
+      qsort(old_strategy, old_counter, sizeof(pair_t), dict_order);
+    }
+    if (!bsearch(turn ? &real_santa : &robo_santa, new_strategy, new_counter,
+                 sizeof(pair_t), dict_order)) {
+      new_strategy[new_counter++] = turn ? real_santa : robo_santa;
+      qsort(new_strategy, new_counter, sizeof(pair_t), dict_order);
+    }
     turn = (turn + 1) % 2;
   }
-  printf("houses with just one santa: %lu\n", map_size(old_strategy));
-  delete_map(old_strategy);
-  printf("houses with real and robo santas: %lu\n", map_size(new_strategy));
-  delete_map(new_strategy);
+  printf("houses with just one santa: %u\n", old_counter);
+  printf("houses with real and robo santas: %u\n", new_counter);
   fclose(fp);
 }
