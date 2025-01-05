@@ -1,26 +1,30 @@
-DIR_SRC = src
-DIR_INP = input
-DIR_BIN = build
+DIR_INP = .input
+DIR_BIN = .build
 
 dir_guard = @mkdir -p $(@D)
 
 CC = gcc
-CFLAGS = -O2 -Wpedantic
+CFLAGS = -O3 -Wpedantic -std=c23
 
 LIBS = -lm
-BINARIES = $(patsubst $(DIR_SRC)/%, $(DIR_BIN)/%, $(wildcard $(DIR_SRC)/*))
+BINARIES = $(patsubst %.c, $(DIR_BIN)/%, $(wildcard *.c))
+INPUTS = $(patsubst %.c, $(DIR_INP)/%, $(wildcard *.c))
 
-default: $(BINARIES)
+default: $(BINARIES) $(INPUTS)
 
-.PHONY: $(patsubst $(DIR_SRC)/%, /%, $(wildcard $(DIR_SRC)/*)) clean default
+.PHONY: $(patsubst %.c, /%, $(wildcard *.c)) clean default
 
-day%: $(DIR_BIN)/day%
-	@./$< $(DIR_INP)/$@
+day%: $(DIR_BIN)/day% $(DIR_INP)/day%
+	@cat $(DIR_INP)/$@ | $(DIR_BIN)/$@
 
 clean: 
 	@rm -rf $(DIR_BIN)
+	@rm -rf $(DIR_INP)
 
-.SECONDEXPANSION:
-$(DIR_BIN)/day%: $$(shell find $(DIR_SRC)/day% -type f)
+$(DIR_BIN)/day%: day%.c
 	$(dir_guard)
-	@$(CC) $(CFLAGS) -I$(DIR_SRC)/$(@F) -o $@ $^ $(LIBS)
+	@$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+$(DIR_INP)/day%:
+	$(dir_guard)
+	@curl -s -o $(DIR_INP)/$(@F) --cookie .cookie https://adventofcode.com/2015/day/$*/input
